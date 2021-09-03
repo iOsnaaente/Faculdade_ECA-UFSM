@@ -1,0 +1,269 @@
+# -*- coding: utf-8 -*-
+
+
+import pandas as pd
+
+# Esta linha de código pode demorar cerca de 1 min para rodar
+df = pd.read_excel('retail.xlsx')
+
+df.isnull().sum()
+
+from IPython.display import YouTubeVideo
+YouTubeVideo('usmbTUx9zdY', start=1181)
+
+# Insira aqui seu código para remover os dados nulos.
+# Ao final do código, a variável df deve ser um DataFrame
+# do pandas contendo apenas os registros onde nenhuma
+# coluna é nula. O resultado deve ser sobrescrito na
+# na própria variável df. Há duas formas de fazer isso
+# no pandas
+#
+#  Opção 1 Usando inplace: df.função(argumentos, inplace=True)
+#  Opção 2 Usando atribuição: df = df.função(argumentos)
+
+df.dropna( inplace=True )
+
+# Verifica novamente. Dessa vez os valores
+# da soma devem estar zerados para todas
+# colunas.
+
+df.isnull().sum()
+
+# Escreva abaixo seu código para converter os códigos
+# de produtos (campo 'StockCode') para o formato string
+# no DataFrame df.
+
+df['StockCode'] = df['StockCode'].astype(str)
+
+# Escreva aqui abaixo seu código para separar apenas
+# as colunas de código de produto, nome 'StockCode'
+# e descrição, nome 'Description'. O novo DataFrame
+# deve ser gravado na variável de nome products.
+
+products = df[['StockCode', 'Description']].copy()
+
+# Escreva abaixo o código para remover os itens duplicados
+# do DataFrame de produtos. Ao fazer isso garanta que o nome
+# do DataFrame seja o mesmo, ou seja, o resultado deve ser
+# gravado na própria variável products.
+
+products.drop_duplicates(inplace=True, subset='StockCode', keep='last' )
+
+# Escreva aqui seu código para criar um dicionário do
+# Python a partir do DataFrame products. O nome do
+# dicionário deverá ser prodcuts_dict
+
+products_dict = products.groupby('StockCode')['Description'].apply(list).to_dict()
+
+# Teste do dicionário: na linha de código abaixo
+# consultamos um código de produto no seu dicionário.
+# Se você cumpriu todos passos corretamente até
+# aqui, então o resultado deve ser uma lista contendo
+# uma única string, que é a descrição do produto
+# correspondente àquele código.
+
+products_dict['84029E']
+
+# Escreva abaixo o código que cria uma lista 
+# coletando os ids da coluna CustomerID de df,
+# selecionando apenas ids únicos (não recolhe
+# ids repetidos). Esta lista deve ser uma lista
+# nativa do Python, de nome customers.
+
+customers = df['CustomerID'].unique().tolist()
+customers
+
+len(customers)
+
+# No espaço abaixo, importe o módulo random
+# e chame a função shuffle embaralhando os
+# itens na lista customers
+
+from random import shuffle
+
+shuffle(customers)
+
+# Calcule a quantidade de clientes que usaremos
+# para treinamento. Essa quantidade deve ser 90%
+# do total de clientes na variável customers.
+# Transforme o resultado em um número inteiro.
+# O resultado deve ser gravado na variável de
+# nome train_size.
+
+train_size = round( 0.9*len(customers) )
+
+# Use o slicing do Python para separar
+# os consumidores em duas listas: uma para
+# treinamento e a outra para validação. Para
+# definir o ponto de corte do slicing, use
+# a variável train_size definida acima. A lista
+# de consumidores para treinamento deve se
+# chamar customers_train e incluir exatamente
+# o trecho da lista customers começando
+# do início, com quantidade igual a train_size.
+# Os demais devem itens ser colocados na lista
+# de nome customers_val (lista ids de validação)
+
+customers_train = customers[ : train_size ] 
+customers_val = customers[train_size : ]
+
+# Agora, baseado nos ids separados nas listas
+# customers_train e customers_val acima, crie
+# dois datasets a partir do dataset original df,
+# selecionando em df_train as linhas que contem
+# ids da lista customers_train no campo CustomerID,
+# e em df_val as linhas que contem  ids da lista
+# customers_val.
+
+df_train = df[ df[ "CustomerID" ].isin(customers_train) ]
+df_val = df[ df[ "CustomerID" ].isin(customers_val) ]
+
+
+def compile_orders(customers, df):
+  ''' Essa função coleta todas compras do histórico
+      de cada cliente. O parâmetro customers é a lista
+      de ids de clientes e o parâmetro df é o objeto
+      DataFrame do pandas com os dados de cada compra.
+      O valor retornado é uma lista de listas, onde cada
+      lista interna contém a seguência de códigos de produto
+      de cada compra, na ordem que se apresentava no
+      histórico.
+  '''
+
+  # Essa será a lista de compras -- lista de listas de produtos
+  orders = []
+  
+  # Coletaremos as compras de cada cliente
+  for customer in customers:
+
+    # Aqui convertemos os códigos de produtos das compras
+    # de cada cliente para uma lista única
+    order = df[df['CustomerID'] == customer]['StockCode'].tolist()
+
+    # Essa lista de itens será a lista de produtos que será adicionada
+    # à lista de compras principal.
+    orders.append(order)
+    
+  return orders
+
+# Aqui separamos as listas de listas de compras. Este código
+# demora cerca de 1 minuto para rodar
+orders_train = compile_orders(customers_train, df_train)
+orders_val = compile_orders(customers_val, df_val)
+
+# Aqui importamos o módulo GenSim
+import gensim
+
+# Importamos o NumPy
+import numpy as np
+
+# Código para ignorar warnings
+# (só para 'despoluir' as saídas
+#  por motivos didáticos, ignorar
+#  warnings não é prática recomendada
+#  exceto quando o código já foi
+#  testado e os warnings examinados
+#  e determinados como seguros)
+import warnings;
+warnings.filterwarnings('ignore')
+
+# Criamos o objeto da classe Word2Vec. Já no
+# construtor passamos os parâmetros de treinamento,
+# pois o modelo será treinado ao criar o objeto.
+
+model = gensim.models.Word2Vec( orders_train, size=50, window=5, workers=10, iter=10 )
+
+# Mostra os dados básicos do objeto
+
+print(model)
+
+
+def most_similar(product_id):
+  ''' Essa função mostra os 10 produtos mais semelhantes
+      ao produto cujo código foi passado como argumento.
+      Na verdade o método most_similar() do objeto Word2Vec
+      já faz isso. Aqui apenas acrescentamos as descrições,
+      para facilitar examinar o resultado, já que olhando
+      apenas os códigos ficaria difícil de dizer se o
+      conjunto de produtos semelhantes faz sentido.
+  '''
+
+  # Primeiro mostramos a descrição do produto consultado
+  print('Most similar to:', products_dict[product_id])
+
+  # Aqui buscamos a lista de códigos mais semelhantes
+  # ao apresentado no embedding.
+  s = model.most_similar(positive=product_id)
+
+  # Para cada código, mostramos a descrição
+  for product, prob in s:
+    print(products_dict[product], prob)
+
+model.wv.index2entity[1000:1010]
+
+products_dict.keys()
+
+# Aqui vamos verificar o produto mais semelhante
+# ao produto de código 23188.
+
+most_similar('23188')
+
+
+# Lista os códigos dos produtos comprados
+# na ordem de compras número 32.
+
+orders_val[32]
+
+
+def get_suggestions(orders):
+  ''' Nesta função, passa-se como argumento uma lista
+      de códigos de produtos, que representa as compras
+      de um cliente, em um determinado momento. Com base
+      nos embeddings desses itens, calculamos um vetor
+      médio, que captura a "semântica" das compras e
+      baseado nesse vetor, buscamos os produtos mais
+      similares para sugerir. Apenas sugerimos os
+      produtos que já não estiverem na lista.
+  '''
+  # Esse será o array que armazenará o embedding médio
+  v = np.zeros((50))
+
+  # Essa variável vai receber a quantidade de produtos,
+  # para calcular a média mais tarde.
+  count = 0
+
+  # Aqui mostramos as descrições dos produtos já na lista
+  # para facilitar a conferência.
+  print('Orders so far:')
+  for product in orders:
+    print(products_dict[product])
+    # Para cada produto no embedding (aqui testamos,
+    # para evitar incluir um produto que não esteja
+    # no embedding treinado, pois isso geraria um erro)
+    if product in model.wv:
+      # somamos o vetor de embedding daquele produto
+      # no array v
+      v += model.wv[product]
+      # e contamos +1 em count
+      count += 1
+  # Dividmos o resultado por count para calcular
+  # o vetor médio, no espaço de embeddings
+  v /= count
+  # E por fim buscamos os 10 produtos mais semelhantes
+  # como fizemos originalmente.
+  s = model.similar_by_vector(v)
+  print('Suggestions:')
+  for product, prob in s:
+    # Mostramos apenas os produtos que já não estiverem
+    # na lista original.
+    if product not in orders:
+      # Mostramos as descrições para facilitar a leitura
+      print(products_dict[product], prob)
+
+"""Abaixo testamos o código de sugestões definido acima."""
+
+get_suggestions(orders_val[32])
+
+get_suggestions(orders_val[67])
+
+get_suggestions(orders_val[88])
