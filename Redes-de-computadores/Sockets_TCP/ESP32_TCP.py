@@ -1,18 +1,18 @@
 import socket
 
+HOST    = '192.168.4.1'     # IP address 
+PORT    = 1205              # Port where the server is connected
+
+
 class Client_TCP:
+    TIMEOUT = 1                 # Timeout in seconds 
+    BUFF    = 1024              # Buffer to receive n bytes 
 
-    HOST    = '192.168.18.16' # IP address 
-    PORT    = 1205            # Port where the server is connected
-    TIMEOUT = 1               # Timeout in seconds 
-    BUFF    = 1024            # Buffer to receive n bytes 
-
-    def __init__(self, HOST = '192.168.18.16', PORT = 1205, timeout = 0 ):
-
+    def __init__(self, HOST : str, PORT : int , timeout : int = 0, buff : int = 0 ) -> None:
         self.HOST     = HOST
-        self.PORT     = PORT  
-        self.TIMEOUT  = timeout
-        self.BUFF     = 1024
+        self.PORT     = PORT 
+        self.TIMEOUT  = timeout if timeout != 0 else self.TIMEOUT
+        self.BUFF     = buff if buff != 0 else self.BUFF 
 
         self.isAlive = False 
 
@@ -23,7 +23,7 @@ class Client_TCP:
             self.tcp.settimeout( self.TIMEOUT ) # Timeout garante que a conexão irá durar esse tempo
 
         self.server_addr = (HOST, PORT)           # Cria a tupla addr do server
-        self.connect_server()                   # Chama o método de conexão do servidor
+        self.connect_server()                     # Chama o método de conexão do servidor
 
 
     """ Para se conectar em um servidor                                                  
@@ -56,7 +56,6 @@ class Client_TCP:
         Lembrar do timeout (segundos).
     """
     def receive_message(self, show_msg):
-
         try:
             msg = self.tcp.recvfrom( self.BUFF ) 
             if show_msg:
@@ -85,11 +84,13 @@ class Client_TCP:
     """
     def close_connection(self):
         self.tcp.close()
-    
 
-if __name__ == "__main__":
 
-    client = Client_TCP( '100.122.18.183', 1205 ) # IP from Server
+from struct import pack 
 
-    client.send_message( b'M1205' )
-    client.receive_message( True )
+client = Client_TCP( HOST, PORT )
+
+while True:
+    inp = input("Manda: ")
+    client.send_message( inp.encode() )
+
